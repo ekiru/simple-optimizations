@@ -27,6 +27,12 @@ INIT {
         PAST::Val.new(:value($l - $r));
     };
     
+    %foldable-op<mul> := 1;
+    %foldable-argument<mul> := &int-or-float;
+    %fold-sub<mul> := -> $l, $r {
+        PAST::Val.new(:value($l * $r));
+    };
+
     my $pattern := 
       PAST::Pattern::Op.new(:pirop(-> $op { pir::exists__iQs(%foldable-op,
                                                              $op); }),
