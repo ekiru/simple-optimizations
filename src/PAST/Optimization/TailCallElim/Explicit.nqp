@@ -2,7 +2,7 @@ module PAST::Optimization::TailCallElim::Explicit;
 
 INIT {
     pir::load_bytecode('PAST/Pattern.pbc');
-    pir::load_bytecode('Tree/Optimizer.pbc');
+    pir::load_bytecode('PAST/Optimizer.pbc');
 
     my $pattern :=
       PAST::Pattern::Op.new(:pasttype<return>,
@@ -30,7 +30,7 @@ INIT {
     };
 
     our $optimization :=
-      Tree::Optimizer::Pass.new(&eliminate,
+      PAST::Optimizer::Pass.new(&eliminate,
                                 :when($pattern),
                                 :recursive(1),
                                 :name<PAST::Optimization::TailCallElim::Explicit>);

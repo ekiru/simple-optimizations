@@ -2,26 +2,52 @@ module PAST::Optimization::ConstantFold::Simple;
 
 INIT {
     pir::load_bytecode('PAST/Pattern.pbc');
-    pir::load_bytecode('Tree/Optimizer.pbc');
+    pir::load_bytecode('PAST/Optimizer.pbc');
 
-    my &isInt := sub isInt ($val) {
-        pir::isa__iPP($val, Integer);
-    }
+    my %foldable-op;
+    my %foldable-argument;
+    my %fold-sub;
+
+    %foldable-op<add> := 1;
+    %foldable-argument<add> := -> $node, $ignore {
+        my $arg := $node ~~ PAST::Val
+          ?? $node.value
+          !! $node;
+        pir::isa__IPP($arg, Integer) || pir::isa__IPP($arg, Float);
+    };
+    %fold-sub<add> := -> $l, $r {
+        _dumper($l);
+        _dumper($r);
+        PAST::Val.new(:value($l + $r));
+    };
 
     my $pattern := 
-      PAST::Pattern::Op.new(:pirop<add>,
-                            PAST::Pattern::Val.new(:value(&isInt)),
-                            PAST::Pattern::Val.new(:value(&isInt)));
+      PAST::Pattern::Op.new(:pirop(-> $op { pir::exists__iQs(%foldable-op,
+                                                             $op); }),
+                            -> $ignore { 1; },
+                            -> $ignore { 1; });
 
-    my &foldAdd := sub foldAdd ($/) {
-        my $value := $/[0].from().value() + $/[1].from().value();
-        my $result := PAST::Val.new(:value($value));
-
+    my &fold := -> $/ {
+        my $op := $<pirop>.orig;
+        return $/.orig
+          unless %foldable-argument{$op}($/[0].orig, 'l')
+            && %foldable-argument{$op}($/[1].orig, 'r');
+        
+        my $left := $/[0].orig ~~ PAST::Val
+          ?? $/[0].orig.value
+          !! $/[0].orig;
+        _dumper($left);
+        my $right := $/[1].orig ~~ PAST::Val
+          ?? $/[1].orig.value
+          !! $/[1].orig;
+        _dumper($right);
+        my $result := %fold-sub{$op}($left, $right);
+        _dumper($result);
         $result;
     };
 
     our $optimization :=
-      Tree::Optimizer::Pass.new(&foldAdd,
+      PAST::Optimizer::Pass.new(&fold,
                                 :when($pattern),
                                 :recursive(1),
                                 :name<PAST::Optimization::ConstantFold::Simple>);
