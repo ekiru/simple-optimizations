@@ -8,17 +8,25 @@ INIT {
     my %foldable-argument;
     my %fold-sub;
 
-    %foldable-op<add> := 1;
-    %foldable-argument<add> := -> $node, $ignore {
+    my &int-or-float := -> $node, $ignore {
         my $arg := $node ~~ PAST::Val
           ?? $node.value
           !! $node;
         pir::isa__IPP($arg, Integer) || pir::isa__IPP($arg, Float);
     };
+
+    %foldable-op<add> := 1;
+    %foldable-argument<add> := &int-or-float;
     %fold-sub<add> := -> $l, $r {
         PAST::Val.new(:value($l + $r));
     };
 
+    %foldable-op<sub> := 1;
+    %foldable-argument<sub> := &int-or-float;
+    %fold-sub<sub> := -> $l, $r {
+        PAST::Val.new(:value($l - $r));
+    };
+    
     my $pattern := 
       PAST::Pattern::Op.new(:pirop(-> $op { pir::exists__iQs(%foldable-op,
                                                              $op); }),
