@@ -16,8 +16,6 @@ INIT {
         pir::isa__IPP($arg, Integer) || pir::isa__IPP($arg, Float);
     };
     %fold-sub<add> := -> $l, $r {
-        _dumper($l);
-        _dumper($r);
         PAST::Val.new(:value($l + $r));
     };
 
@@ -36,13 +34,10 @@ INIT {
         my $left := $/[0].orig ~~ PAST::Val
           ?? $/[0].orig.value
           !! $/[0].orig;
-        _dumper($left);
         my $right := $/[1].orig ~~ PAST::Val
           ?? $/[1].orig.value
           !! $/[1].orig;
-        _dumper($right);
         my $result := %fold-sub{$op}($left, $right);
-        _dumper($result);
         $result;
     };
 
