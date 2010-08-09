@@ -15,6 +15,13 @@ INIT {
         pir::isa__IPP($arg, Integer) || pir::isa__IPP($arg, Float);
     };
 
+    my &int-or-float-non-zero-rhs := -> $node, $side {
+        my $arg := $node ~~ PAST::Val
+          ?? $node.value
+          !! $node;
+        &int-or-float($arg, $side) && ($node eq 'l' || $arg != 0);
+    };
+
     %foldable-op<add> := 1;
     %foldable-argument<add> := &int-or-float;
     %fold-sub<add> := -> $l, $r {
@@ -31,6 +38,12 @@ INIT {
     %foldable-argument<mul> := &int-or-float;
     %fold-sub<mul> := -> $l, $r {
         PAST::Val.new(:value($l * $r));
+    };
+
+    %foldable-op<fdiv> := 1;
+    %foldable-argument<fdiv> := &int-or-float-non-zero-rhs;
+    %fold-sub<fdiv> := -> $l, $r {
+        PAST::Val.new(:value(pir::set__IN(pir::fdiv__NNN($l, $r))));
     };
 
     my $pattern := 
