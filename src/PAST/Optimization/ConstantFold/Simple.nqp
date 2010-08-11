@@ -6,6 +6,7 @@ INIT {
 
     my %foldable-op;
     my %foldable-argument;
+    my %foldable-returns;
     my %fold-sub;
 
     my &int-or-float := -> $node, $ignore {
@@ -22,28 +23,40 @@ INIT {
         &int-or-float($arg, $side) && ($node eq 'l' || $arg != 0);
     };
 
+    my &float-if-either-arg := -> $left, $right {
+        if pir::isa__IPP($left, Float) || pir::isa__IPP($right, Float) {
+            'Float';
+        } else {
+            'Integer';
+        }
+    };
+
     %foldable-op<add> := 1;
     %foldable-argument<add> := &int-or-float;
+    %foldable-returns<add> := &float-if-either-arg;
     %fold-sub<add> := -> $l, $r {
-        PAST::Val.new(:value($l + $r));
+        $l + $r;
     };
 
     %foldable-op<sub> := 1;
     %foldable-argument<sub> := &int-or-float;
+    %foldable-returns<sub> := &float-if-either-arg;
     %fold-sub<sub> := -> $l, $r {
-        PAST::Val.new(:value($l - $r));
+        $l - $r;
     };
     
     %foldable-op<mul> := 1;
     %foldable-argument<mul> := &int-or-float;
+    %foldable-returns<mul> := &float-if-either-arg;
     %fold-sub<mul> := -> $l, $r {
-        PAST::Val.new(:value($l * $r));
+        $l * $r;
     };
 
     %foldable-op<fdiv> := 1;
     %foldable-argument<fdiv> := &int-or-float-non-zero-rhs;
+    %foldable-returns<fdiv> := &float-if-either-arg;
     %fold-sub<fdiv> := -> $l, $r {
-        PAST::Val.new(:value(pir::set__IN(pir::fdiv__NNN($l, $r))));
+        pir::fdiv($l, $r);
     };
 
     my $pattern := 
@@ -64,7 +77,9 @@ INIT {
         my $right := $/[1].orig ~~ PAST::Val
           ?? $/[1].orig.value
           !! $/[1].orig;
-        my $result := %fold-sub{$op}($left, $right);
+        my $type := %foldable-returns{$op}($left, $right);
+        my $result := PAST::Val.new(:value(%fold-sub{$op}($left, $right)),
+                                    :returns($type));
         $result;
     };
 
